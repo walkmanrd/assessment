@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/walkmanrd/assessment/models"
 	"github.com/walkmanrd/assessment/repositories"
 	"github.com/walkmanrd/assessment/types"
 )
@@ -25,13 +24,7 @@ func (c *ExpenseController) Store(e echo.Context) error {
 		return err
 	}
 
-	expenseModel := models.Expense{
-		Title:  requestExpense.Title,
-		Amount: requestExpense.Amount,
-		Note:   requestExpense.Note,
-		Tags:   requestExpense.Tags,
-	}
-	expense, err := expenseRepository.Create(expenseModel)
+	expense, err := expenseRepository.Create(requestExpense)
 
 	if err != nil {
 		return e.JSON(http.StatusInternalServerError, types.Error{Message: err.Error()})

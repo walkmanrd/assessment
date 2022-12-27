@@ -10,9 +10,9 @@ type DB interface {
 	Exec(query string, args ...any) (sql.Result, error)
 }
 
-type SQL interface {
-	Open(driverName, dataSourceName string) (*DB, error)
-}
+type (
+	sqlOpener func(string, string) (*sql.DB, error)
+)
 
 func AutoMigrate(db DB) {
 	createTb := `
@@ -31,10 +31,14 @@ func AutoMigrate(db DB) {
 	}
 }
 
+func OpenDB(open sqlOpener, connectionUrl string) (*sql.DB, error) {
+	return open("postgres", connectionUrl)
+}
+
 func ConnectDatabase() *sql.DB {
 	var err error
 
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	db, err := OpenDB(sql.Open, os.Getenv("DATABASE_URL"))
 
 	if err != nil {
 		log.Fatal("Connect database error", err)

@@ -12,15 +12,18 @@ type mockDB struct {
 	rowsAffected int64
 }
 
+// Exec is a function that execute query
 func (m *mockDB) Exec(query string, args ...interface{}) (sql.Result, error) {
 	m.query = query
 	return m, nil
 }
 
+// LastInsertId is a function that return last insert id
 func (m *mockDB) LastInsertId() (int64, error) {
 	return m.lastInsertId, nil
 }
 
+// RowsAffected is a function that return rows affected
 func (m *mockDB) RowsAffected() (int64, error) {
 	return m.rowsAffected, nil
 }

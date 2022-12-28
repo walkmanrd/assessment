@@ -1,5 +1,6 @@
 package models
 
+// Expense is a model for expense
 type Expense struct {
 	ID     string   `json:"id"`
 	Title  string   `json:"title"`

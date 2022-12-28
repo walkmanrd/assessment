@@ -15,10 +15,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// CustomValidator is a struct for custom validator
 type CustomValidator struct {
 	validator *validator.Validate
 }
 
+// Validate is a function to validate request
 func (cv *CustomValidator) Validate(i interface{}) error {
 	if err := cv.validator.Struct(i); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -26,14 +28,17 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 	return nil
 }
 
+// ExpenseController is a struct for expense controller
 var expenseController controllers.ExpenseController
 
+// init is a function that run before main
 func init() {
 	db := configs.ConnectDatabase()
 	configs.AutoMigrate(db)
 	defer db.Close()
 }
 
+// AuthHeader is a middleware to check authorization header
 func AuthHeader(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authorization := c.Request().Header.Get("Authorization")
@@ -45,18 +50,21 @@ func AuthHeader(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+// main is a function that run after init
 func main() {
+	// Echo instance
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(AuthHeader)
 
+	// Routes
 	e.GET("/expenses/:id", expenseController.Show)
 	e.POST("/expenses", expenseController.Store)
 
+	// Start server
 	port := os.Getenv("PORT")
-
 	log.Println("Server started at " + os.Getenv("PORT"))
 	log.Fatal(e.Start(port))
 	log.Println("Bye bye!")

@@ -7,7 +7,7 @@ import (
 	"github.com/walkmanrd/assessment/types"
 )
 
-// ExpenseController is a struct for health check controller
+// HealthCheckController is a struct for health check controller
 type HealthCheckController struct{}
 
 // GET /health-check

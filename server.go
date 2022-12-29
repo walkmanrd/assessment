@@ -62,6 +62,7 @@ func main() {
 	// Routes
 	e.GET("/expenses/:id", expenseController.Show)
 	e.POST("/expenses", expenseController.Store)
+	e.PUT("/expenses/:id", expenseController.Update)
 
 	// Start server
 	port := os.Getenv("PORT")

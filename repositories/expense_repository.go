@@ -41,7 +41,10 @@ func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.
 	r.db = configs.ConnectDatabase()
 	defer r.db.Close()
 
-	sqlCommand := `INSERT INTO expenses (title, amount, note, tags) values ($1, $2, $3, $4) RETURNING id`
+	sqlCommand := `
+	INSERT INTO expenses (title, amount, note, tags) values ($1, $2, $3, $4)
+	RETURNING id, title, amount, note, tags`
+
 	expense := models.Expense{
 		Title:  expenseRequest.Title,
 		Amount: expenseRequest.Amount,
@@ -51,8 +54,37 @@ func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.
 
 	tags := pq.Array(expense.Tags)
 	row := r.db.QueryRow(sqlCommand, &expense.Title, &expense.Amount, &expense.Note, tags)
-
 	err := row.Scan(&expense.ID)
+
+	if err != nil {
+		fmt.Println("can't scan id on ExpenseRepository", err)
+		return models.Expense{}, err
+	}
+
+	return expense, nil
+}
+
+// Update is a function to update an expense by id
+func (r *ExpenseRepository) Update(id string, expenseRequest types.ExpenseRequest) (models.Expense, error) {
+	r.db = configs.ConnectDatabase()
+	defer r.db.Close()
+
+	sqlCommand := `
+	UPDATE expenses SET title = $1, amount = $2, note = $3, tags = $4
+	WHERE id = $5
+	RETURNING id`
+
+	expense := models.Expense{
+		Title:  expenseRequest.Title,
+		Amount: expenseRequest.Amount,
+		Note:   expenseRequest.Note,
+		Tags:   expenseRequest.Tags,
+	}
+
+	tags := pq.Array(expenseRequest.Tags)
+	row := r.db.QueryRow(sqlCommand, &expense.Title, &expense.Amount, &expense.Note, tags, id)
+	err := row.Scan(&expense.ID)
+
 	if err != nil {
 		fmt.Println("can't scan id on ExpenseRepository", err)
 		return models.Expense{}, err

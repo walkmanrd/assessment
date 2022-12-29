@@ -11,7 +11,7 @@ import (
 
 // ExpenseController is a struct for expense controller
 type ExpenseController struct {
-	requestExpense types.ExpenseRequest
+	expenseRequest types.ExpenseRequest
 	expenseService services.ExpenseService
 }
 
@@ -48,17 +48,17 @@ func (c *ExpenseController) Show(e echo.Context) error {
 // POST /expenses
 // Store is a function to create a new expense
 func (c *ExpenseController) Store(e echo.Context) error {
-	err := e.Bind(&c.requestExpense)
+	err := e.Bind(&c.expenseRequest)
 
 	if err != nil {
 		return e.JSON(http.StatusBadRequest, types.Error{Message: err.Error()})
 	}
 
-	if err = e.Validate(c.requestExpense); err != nil {
+	if err = e.Validate(c.expenseRequest); err != nil {
 		return err
 	}
 
-	expense, err := c.expenseService.Create(c.requestExpense)
+	expense, err := c.expenseService.Create(c.expenseRequest)
 
 	if err != nil {
 		return e.JSON(http.StatusInternalServerError, types.Error{Message: err.Error()})
@@ -76,7 +76,7 @@ func (c *ExpenseController) Update(e echo.Context) error {
 		return e.JSON(http.StatusBadRequest, types.Error{Message: "invalid parameter id"})
 	}
 
-	err := e.Bind(&c.requestExpense)
+	err := e.Bind(&c.expenseRequest)
 
 	if err != nil {
 		return e.JSON(http.StatusBadRequest, types.Error{Message: err.Error()})
@@ -88,7 +88,7 @@ func (c *ExpenseController) Update(e echo.Context) error {
 		return e.JSON(status, types.Error{Message: err.Error()})
 	}
 
-	newExpense, err := c.expenseService.UpdateById(id, c.requestExpense)
+	newExpense, err := c.expenseService.UpdateById(id, c.expenseRequest)
 
 	if err != nil {
 		return e.JSON(http.StatusInternalServerError, types.Error{Message: err.Error()})

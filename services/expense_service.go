@@ -15,6 +15,17 @@ type ExpenseService struct {
 }
 
 // GetById is a service function to get an expense by id
+func (c *ExpenseService) Gets() ([]models.Expense, error) {
+	expenses, err := c.expenseRepository.FindAll()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return expenses, nil
+}
+
+// GetById is a service function to get an expense by id
 func (c *ExpenseService) GetById(id string) (models.Expense, int, error) {
 	expense, err := c.expenseRepository.FindOne(id)
 

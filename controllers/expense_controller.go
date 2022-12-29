@@ -5,17 +5,29 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"github.com/walkmanrd/assessment/repositories"
 	"github.com/walkmanrd/assessment/services"
 	"github.com/walkmanrd/assessment/types"
 )
 
+// ExpenseController is a struct for expense controller
 type ExpenseController struct {
-	requestExpense    types.ExpenseRequest
-	expenseService    services.ExpenseService
-	expenseRepository repositories.ExpenseRepository
+	requestExpense types.ExpenseRequest
+	expenseService services.ExpenseService
 }
 
+// GET /expenses
+// Index is a function to get all expenses
+func (c *ExpenseController) Index(e echo.Context) error {
+	expenses, err := c.expenseService.Gets()
+
+	if err != nil {
+		return e.JSON(http.StatusInternalServerError, types.Error{Message: err.Error()})
+	}
+
+	return e.JSON(http.StatusOK, expenses)
+}
+
+// GET /expenses/:id
 // Show is a function to get an expense by id
 func (c *ExpenseController) Show(e echo.Context) error {
 	id := e.Param("id")
@@ -33,6 +45,7 @@ func (c *ExpenseController) Show(e echo.Context) error {
 	return e.JSON(http.StatusOK, expense)
 }
 
+// POST /expenses
 // Store is a function to create a new expense
 func (c *ExpenseController) Store(e echo.Context) error {
 	err := e.Bind(&c.requestExpense)
@@ -54,6 +67,7 @@ func (c *ExpenseController) Store(e echo.Context) error {
 	return e.JSON(http.StatusCreated, expense)
 }
 
+// PUT /expenses/:id
 // Update is a function to get an expense by id
 func (c *ExpenseController) Update(e echo.Context) error {
 	id := e.Param("id")

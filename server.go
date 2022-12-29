@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/walkmanrd/assessment/configs"
-	"github.com/walkmanrd/assessment/controllers"
+	"github.com/walkmanrd/assessment/routers"
 	"github.com/walkmanrd/assessment/types"
 
 	_ "github.com/lib/pq"
@@ -27,9 +27,6 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 	}
 	return nil
 }
-
-// ExpenseController is a struct for expense controller
-var expenseController controllers.ExpenseController
 
 // init is a function that run before main
 func init() {
@@ -60,9 +57,7 @@ func main() {
 	e.Use(AuthHeader)
 
 	// Routes
-	e.GET("/expenses/:id", expenseController.Show)
-	e.POST("/expenses", expenseController.Store)
-	e.PUT("/expenses/:id", expenseController.Update)
+	routers.ExpenseRouter(e)
 
 	// Start server
 	port := os.Getenv("PORT")

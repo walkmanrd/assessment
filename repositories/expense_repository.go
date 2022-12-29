@@ -15,6 +15,34 @@ type ExpenseRepository struct {
 	db *sql.DB
 }
 
+// FindAll is a function to get all expenses
+func (r *ExpenseRepository) FindAll() ([]models.Expense, error) {
+	r.db = configs.ConnectDatabase()
+
+	stmt, err := r.db.Prepare("SELECT * FROM expenses ORDER BY id ASC")
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	expenses := []models.Expense{}
+
+	for rows.Next() {
+		expense := models.Expense{}
+		err := rows.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, pq.Array(&expense.Tags))
+		if err != nil {
+			return nil, err
+		}
+		expenses = append(expenses, expense)
+	}
+
+	return expenses, nil
+}
+
 // FindOne is a function to get an expenses by id
 func (r *ExpenseRepository) FindOne(id string) (models.Expense, error) {
 	r.db = configs.ConnectDatabase()

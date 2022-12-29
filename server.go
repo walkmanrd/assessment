@@ -57,6 +57,7 @@ func main() {
 	e.Use(AuthHeader)
 
 	// Routes
+	routers.HealthCheckRouter(e)
 	routers.ExpenseRouter(e)
 
 	// Start server

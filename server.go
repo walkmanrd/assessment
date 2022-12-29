@@ -54,11 +54,14 @@ func main() {
 	e.Validator = &CustomValidator{validator: validator.New()}
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(AuthHeader)
 
-	// Routes
+	// Routes Public
 	routers.HealthCheckRouter(e)
-	routers.ExpenseRouter(e)
+
+	// Routes Private
+	g := e.Group("/expenses")
+	g.Use(AuthHeader)
+	routers.ExpenseRouter(g)
 
 	// Start server
 	port := os.Getenv("PORT")

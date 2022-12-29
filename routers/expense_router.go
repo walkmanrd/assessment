@@ -9,9 +9,9 @@ import (
 var expenseController controllers.ExpenseController
 
 // ExpenseRouter is a function to set expense routes
-func ExpenseRouter(e *echo.Echo) {
-	e.GET("/expenses", expenseController.Index)
-	e.GET("/expenses/:id", expenseController.Show)
-	e.POST("/expenses", expenseController.Store)
-	e.PUT("/expenses/:id", expenseController.Update)
+func ExpenseRouter(e *echo.Group) {
+	e.GET("", expenseController.Index)
+	e.GET("/:id", expenseController.Show)
+	e.POST("", expenseController.Store)
+	e.PUT("/:id", expenseController.Update)
 }

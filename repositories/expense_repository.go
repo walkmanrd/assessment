@@ -82,7 +82,7 @@ func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.
 
 	tags := pq.Array(expense.Tags)
 	row := r.db.QueryRow(sqlCommand, &expense.Title, &expense.Amount, &expense.Note, tags)
-	err := row.Scan(&expense.ID)
+	err := row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, pq.Array(&expense.Tags))
 
 	if err != nil {
 		fmt.Println("can't scan id on ExpenseRepository", err)

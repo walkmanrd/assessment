@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"time"
 
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
@@ -39,8 +42,9 @@ func init() {
 func AuthHeader(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authorization := c.Request().Header.Get("Authorization")
+		authTokenCheck := os.Getenv("AUTH_TOKEN")
 
-		if authorization == "November 10, 2009" {
+		if authorization == authTokenCheck {
 			return next(c)
 		}
 		return c.JSON(http.StatusUnauthorized, types.Error{Message: "Unauthorized"})
@@ -65,7 +69,20 @@ func main() {
 
 	// Start server
 	port := os.Getenv("PORT")
-	log.Println("Server started at " + os.Getenv("PORT"))
-	log.Fatal(e.Start(port))
-	log.Println("Bye bye!")
+	go func() {
+		if err := e.Start(port); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
+		}
+	}()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt)
+	<-shutdown
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
+	log.Println("shutting complete bye bye")
 }

@@ -5,11 +5,13 @@ import (
 	"github.com/walkmanrd/assessment/controllers"
 )
 
-// ExpenseController is a struct for expense controller
-var expenseController controllers.ExpenseController
-
-// ExpenseRouter is a function to set expense routes
+// ExpenseRouter is a function to set expense routes on resource path /expenses
 func ExpenseRouter(e *echo.Group) {
+
+	// ExpenseController is a struct for expense controller
+	var expenseController controllers.ExpenseController
+
+	// Setting up routes
 	e.GET("", expenseController.Index)
 	e.GET("/:id", expenseController.Show)
 	e.POST("", expenseController.Store)

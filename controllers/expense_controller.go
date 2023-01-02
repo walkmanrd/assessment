@@ -9,17 +9,34 @@ import (
 	"github.com/walkmanrd/assessment/types"
 )
 
+type ExpenseControllerInterface interface {
+	Index(e echo.Context) error
+	Show(e echo.Context) error
+	Store(e echo.Context) error
+	Update(e echo.Context) error
+}
+
 // ExpenseController is a struct for expense controller
 type ExpenseController struct {
 	expenseRequest types.ExpenseRequest
 	expenseService services.ExpenseService
 }
 
+// bindAndValidateRequest is a function to bind and validate request
+func bindAndValidateRequest(c echo.Context, req interface{}) error {
+	if err := c.Bind(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if err := c.Validate(req); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GET /expenses
 // Index is a function to get all expenses
 func (c *ExpenseController) Index(e echo.Context) error {
 	expenses, err := c.expenseService.Gets()
-
 	if err != nil {
 		return e.JSON(http.StatusInternalServerError, types.Error{Message: err.Error()})
 	}
@@ -48,13 +65,7 @@ func (c *ExpenseController) Show(e echo.Context) error {
 // POST /expenses
 // Store is a function to create a new expense
 func (c *ExpenseController) Store(e echo.Context) error {
-	err := e.Bind(&c.expenseRequest)
-
-	if err != nil {
-		return e.JSON(http.StatusBadRequest, types.Error{Message: err.Error()})
-	}
-
-	if err = e.Validate(c.expenseRequest); err != nil {
+	if err := bindAndValidateRequest(e, &c.expenseRequest); err != nil {
 		return err
 	}
 
@@ -76,10 +87,8 @@ func (c *ExpenseController) Update(e echo.Context) error {
 		return e.JSON(http.StatusBadRequest, types.Error{Message: "invalid parameter id"})
 	}
 
-	err := e.Bind(&c.expenseRequest)
-
-	if err != nil {
-		return e.JSON(http.StatusBadRequest, types.Error{Message: err.Error()})
+	if err := bindAndValidateRequest(e, &c.expenseRequest); err != nil {
+		return err
 	}
 
 	_, status, err := c.expenseService.GetById(id)

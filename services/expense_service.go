@@ -10,8 +10,34 @@ import (
 	"github.com/walkmanrd/assessment/types"
 )
 
+type ExpenseServicer interface {
+	// Gets is a function to get all expenses
+	Gets() ([]models.Expense, error)
+
+	// GetById is a function to get an expense by id
+	GetById(id string) (models.Expense, int, error)
+
+	// Create is a function to create a new expense
+	Create(expenseRequest types.ExpenseRequest) (models.Expense, error)
+
+	// UpdateById is a function to update an expense by id
+	UpdateById(id string, expenseRequest types.ExpenseRequest) (models.Expense, error)
+}
+
+// ExpenseService is a struct for expense service
 type ExpenseService struct {
 	expenseRepository repositories.ExpenseRepository
+}
+
+// GetById is a service function to get an expense by id
+func (c *ExpenseService) Gets() ([]models.Expense, error) {
+	expenses, err := c.expenseRepository.FindAll()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return expenses, nil
 }
 
 // GetById is a service function to get an expense by id

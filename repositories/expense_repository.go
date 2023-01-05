@@ -67,10 +67,9 @@ func (r *ExpenseRepository) FindOne(id string) (models.Expense, error) {
 // Create is a function to create a new expense
 func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.Expense, error) {
 	r.db = configs.ConnectDatabase()
-	defer r.db.Close()
 
 	sqlCommand := `
-	INSERT INTO expenses (title, amount, note, tags) values ($1, $2, $3, $4)
+	INSERT INTO expenses (id, title, amount, note, tags) values (DEFAULT, $1, $2, $3, $4)
 	RETURNING id, title, amount, note, tags`
 
 	expense := models.Expense{
@@ -83,6 +82,8 @@ func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.
 	tags := pq.Array(expense.Tags)
 	row := r.db.QueryRow(sqlCommand, &expense.Title, &expense.Amount, &expense.Note, tags)
 	err := row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, pq.Array(&expense.Tags))
+
+	defer r.db.Close()
 
 	if err != nil {
 		fmt.Println("can't scan id on ExpenseRepository", err)

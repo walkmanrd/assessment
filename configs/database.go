@@ -30,7 +30,7 @@ func AutoMigrate(db DB) {
 	_, err := db.Exec(createTb)
 
 	if err != nil {
-		log.Fatal("can't create table", err)
+		log.Fatal("can't create table: ", err)
 	}
 }
 

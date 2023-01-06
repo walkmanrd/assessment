@@ -8,28 +8,17 @@ import (
 	"os/signal"
 	"time"
 
+	// "github.com/go-errors/errors"
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/walkmanrd/assessment/configs"
 	"github.com/walkmanrd/assessment/routers"
 	"github.com/walkmanrd/assessment/types"
+	"github.com/walkmanrd/assessment/validators"
 
 	_ "github.com/lib/pq"
 )
-
-// CustomValidator is a struct for custom validator
-type CustomValidator struct {
-	validator *validator.Validate
-}
-
-// Validate is a function to validate request
-func (cv *CustomValidator) Validate(i interface{}) error {
-	if err := cv.validator.Struct(i); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-	return nil
-}
 
 // init is a function that run before main
 func init() {
@@ -55,7 +44,7 @@ func AuthHeader(next echo.HandlerFunc) echo.HandlerFunc {
 func main() {
 	// Echo instance
 	e := echo.New()
-	e.Validator = &CustomValidator{validator: validator.New()}
+	e.Validator = &validators.CustomValidator{Validator: validator.New()}
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
@@ -69,6 +58,7 @@ func main() {
 
 	// Start server
 	port := os.Getenv("PORT")
+
 	go func() {
 		if err := e.Start(port); err != nil && err != http.ErrServerClosed {
 			e.Logger.Fatal("shutting down the server")

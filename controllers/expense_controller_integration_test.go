@@ -3,137 +3,233 @@
 package controllers
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
-	"io"
-	"net/http"
-	"os"
-	"strings"
-	"testing"
-
+	"fmt"
+	"github.com/go-playground/validator"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/walkmanrd/assessment/models"
+	"github.com/walkmanrd/assessment/validators"
+
+	"io/ioutil"
+	"log"
+	"net"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
 )
 
-func TestGetAllExpense(t *testing.T) {
-	seedExpense(t)
-	var es []models.Expense
+const serverPort = 2565
 
-	res := request(http.MethodGet, uri("expenses"), nil)
-	err := res.Decode(&es)
+func SetupSuite() *echo.Echo {
+	eh := echo.New()
+	eh.Validator = &validators.CustomValidator{Validator: validator.New()}
+	eh.Use(middleware.Logger())
+	eh.Use(middleware.Recover())
+	var expenseController ExpenseController
 
-	assert.Nil(t, err)
-	assert.EqualValues(t, http.StatusOK, res.StatusCode)
-	assert.Greater(t, len(es), 0)
-}
+	// Setting up routes
+	eh.GET("/expenses", expenseController.Index)
+	eh.GET("/expenses/:id", expenseController.Show)
+	eh.POST("/expenses", expenseController.Store)
+	eh.PUT("/expenses/:id", expenseController.Update)
 
-func TestCreateUser(t *testing.T) {
-	body := bytes.NewBufferString(`{
-		"title": "strawberry smoothie",
-		"amount": 79,
-		"note": "night market promotion discount 10 bath", 
-		"tags": ["food", "beverage"]
-	}`)
-	var e models.Expense
+	go func(e *echo.Echo) {
+		e.Start(fmt.Sprintf(":%d", serverPort))
+	}(eh)
+	for {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", serverPort), 30*time.Second)
+		if err != nil {
+			log.Println(err)
+		}
+		if conn != nil {
+			conn.Close()
+			break
+		}
+	}
 
-	res := request(http.MethodPost, uri("expenses"), body)
-	err := res.Decode(&e)
-
-	assert.Nil(t, err)
-	assert.Equal(t, http.StatusCreated, res.StatusCode)
-	assert.NotEqual(t, 0, e.ID)
-	assert.Equal(t, "strawberry smoothie", e.Title)
-	assert.Equal(t, float64(79), float64(e.Amount))
-	assert.Equal(t, "night market promotion discount 10 bath", e.Note)
-	assert.Equal(t, []string{"food", "beverage"}, e.Tags)
-}
-
-func TestGetExpenseByID(t *testing.T) {
-	e := seedExpense(t)
-
-	var latest models.Expense
-	res := request(http.MethodGet, uri("expenses", e.ID), nil)
-	err := res.Decode(&latest)
-
-	assert.Nil(t, err)
-	assert.Equal(t, http.StatusOK, res.StatusCode)
-	assert.Equal(t, e.ID, latest.ID)
-	assert.NotEmpty(t, latest.Title)
-	assert.NotEmpty(t, latest.Note)
+	return eh
 }
 
 func seedExpense(t *testing.T) models.Expense {
-	var e models.Expense
-	body := bytes.NewBufferString(`{
+	reqBody := `{
 		"title": "strawberry smoothie",
 		"amount": 79,
-		"note": "night market promotion discount 10 bath", 
+		"note": "night market promotion discount 10 bath",
 		"tags": ["food", "beverage"]
-	}`)
-	err := request(http.MethodPost, uri("expenses"), body).Decode(&e)
-	if err != nil {
-		t.Fatal("can't create expense: ", err)
+	}`
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%d/expenses", serverPort), strings.NewReader(reqBody))
+	assert.Nil(t, err)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	client := http.Client{}
+	resp, err := client.Do(req)
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	}
-	return e
+
+	resBody, err := ioutil.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	resp.Body.Close()
+
+	var expense models.Expense
+	err = json.Unmarshal([]byte(resBody), &expense)
+	assert.NoError(t, err)
+
+	if assert.NotEqual(t, 0, expense.ID) {
+		assert.Equal(t, "strawberry smoothie", expense.Title)
+		assert.Equal(t, float64(79), float64(expense.Amount))
+		assert.Equal(t, "night market promotion discount 10 bath", expense.Note)
+		assert.Equal(t, pq.StringArray{"food", "beverage"}, expense.Tags)
+	}
+
+	return expense
+}
+
+func getExpenseById(t *testing.T, id string) models.Expense {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%d/expenses/"+id, serverPort), nil)
+	assert.NoError(t, err)
+
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	client := http.Client{}
+
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+
+	resBody, err := ioutil.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	resp.Body.Close()
+
+	var expense models.Expense
+	err = json.Unmarshal(resBody, &expense)
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.NotEqual(t, 0, expense.ID)
+		assert.Equal(t, "strawberry smoothie", expense.Title)
+		assert.Equal(t, float64(79), float64(expense.Amount))
+		assert.Equal(t, "night market promotion discount 10 bath", expense.Note)
+		assert.Equal(t, pq.StringArray{"food", "beverage"}, expense.Tags)
+	}
+
+	return expense
+}
+
+func TestCreateExpense(t *testing.T) {
+	// setup server
+	eh := SetupSuite()
+
+	// create expense and assertion
+	seedExpense(t)
+
+	// shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	eh.Shutdown(ctx)
+}
+
+func TestGetExpenseByID(t *testing.T) {
+	// setup server
+	eh := SetupSuite()
+
+	// create expense and assertion
+	newExpense := seedExpense(t)
+
+	// get expense by id and assertion
+	getExpenseById(t, newExpense.ID)
+
+	// shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	eh.Shutdown(ctx)
+}
+
+func TestGetAllExpense(t *testing.T) {
+	// setup server
+	eh := SetupSuite()
+
+	// setup seed
+	seedExpense(t)
+
+	// arrange
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%d/expenses", serverPort), nil)
+	assert.NoError(t, err)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	client := http.Client{}
+
+	// act
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+
+	resBody, err2 := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var es []models.Expense
+	json.Unmarshal(resBody, &es)
+
+	// assertions
+	if assert.NoError(t, err2) {
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.NotEqual(t, 0, len(es))
+		assert.NotEqual(t, 0, es[0].ID)
+		assert.Equal(t, "strawberry smoothie", es[0].Title)
+		assert.Equal(t, float64(79), float64(es[0].Amount))
+		assert.Equal(t, "night market promotion discount 10 bath", es[0].Note)
+		assert.Equal(t, pq.StringArray{"food", "beverage"}, es[0].Tags)
+	}
+
+	// shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	eh.Shutdown(ctx)
 }
 
 func TestUpdateUserByID(t *testing.T) {
-	e := seedExpense(t)
+	// Setup server
+	eh := SetupSuite()
 
-	var latest models.Expense
-	res := request(http.MethodGet, uri("expenses", e.ID), nil)
-	err := res.Decode(&latest)
+	// create expense and assertion
+	newExpense := seedExpense(t)
 
-	assert.Nil(t, err)
-	assert.Equal(t, http.StatusOK, res.StatusCode)
-
-	var e2 models.Expense
-	body := bytes.NewBufferString(`{
+	// Update last Expense
+	reqBody := `{
 		"title": "strawberry smoothie for update",
 		"amount": 80,
-		"note": "night market promotion discount 10 bath for update", 
+		"note": "night market promotion discount 10 bath for update",
 		"tags": ["food", "beverage", "for update"]
-	}`)
-	res2 := request(http.MethodPut, uri("expenses/"+latest.ID), body)
-	err2 := res2.Decode(&e2)
+	}`
 
-	assert.Nil(t, err2)
-	assert.Equal(t, http.StatusOK, res2.StatusCode)
-	assert.NotEqual(t, 0, e2.ID)
-	assert.Equal(t, "strawberry smoothie for update", e2.Title)
-	assert.Equal(t, float64(80), float64(e2.Amount))
-	assert.Equal(t, "night market promotion discount 10 bath for update", e2.Note)
-	assert.Equal(t, []string{"food", "beverage", "for update"}, e2.Tags)
-}
-
-func uri(paths ...string) string {
-	host := "http://localhost:2565"
-	if paths == nil {
-		return host
-	}
-
-	url := append([]string{host}, paths...)
-	return strings.Join(url, "/")
-}
-
-func request(method, url string, body io.Reader) *Response {
-	req, _ := http.NewRequest(method, url, body)
-	req.Header.Add("Authorization", os.Getenv("AUTH_TOKEN"))
-	req.Header.Add("Content-Type", "application/json")
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:%d/expenses/"+newExpense.ID, serverPort), strings.NewReader(reqBody))
+	assert.NoError(t, err)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	client := http.Client{}
-	res, err := client.Do(req)
-	return &Response{res, err}
-}
+	respUpdate, err := client.Do(req)
 
-type Response struct {
-	*http.Response
-	err error
-}
-
-func (r *Response) Decode(v interface{}) error {
-	if r.err != nil {
-		return r.err
+	if assert.NoError(t, err) {
+		assert.Equal(t, http.StatusOK, respUpdate.StatusCode)
 	}
 
-	return json.NewDecoder(r.Body).Decode(v)
+	resBody, err := ioutil.ReadAll(respUpdate.Body)
+	assert.NoError(t, err)
+	respUpdate.Body.Close()
+
+	var lastExpense models.Expense
+	err = json.Unmarshal([]byte(resBody), &lastExpense)
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, 0, lastExpense.ID)
+	assert.Equal(t, "strawberry smoothie for update", lastExpense.Title)
+	assert.Equal(t, float64(80), float64(lastExpense.Amount))
+	assert.Equal(t, "night market promotion discount 10 bath for update", lastExpense.Note)
+	assert.Equal(t, pq.StringArray{"food", "beverage", "for update"}, lastExpense.Tags)
+
+	// shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	eh.Shutdown(ctx)
 }

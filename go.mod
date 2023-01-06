@@ -3,7 +3,7 @@ module github.com/walkmanrd/assessment
 go 1.19
 
 require (
-	github.com/go-errors/errors v1.4.2
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/labstack/echo/v4 v4.9.1
 	github.com/lib/pq v1.10.7

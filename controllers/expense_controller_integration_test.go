@@ -9,6 +9,7 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/walkmanrd/assessment/models"
 	"github.com/walkmanrd/assessment/validators"
@@ -84,7 +85,7 @@ func seedExpense(t *testing.T) models.Expense {
 		assert.Equal(t, "strawberry smoothie", expense.Title)
 		assert.Equal(t, float64(79), float64(expense.Amount))
 		assert.Equal(t, "night market promotion discount 10 bath", expense.Note)
-		assert.Equal(t, []string{"food", "beverage"}, expense.Tags)
+		assert.Equal(t, pq.StringArray{"food", "beverage"}, expense.Tags)
 	}
 
 	return expense
@@ -113,7 +114,7 @@ func getExpenseById(t *testing.T, id string) models.Expense {
 		assert.Equal(t, "strawberry smoothie", expense.Title)
 		assert.Equal(t, float64(79), float64(expense.Amount))
 		assert.Equal(t, "night market promotion discount 10 bath", expense.Note)
-		assert.Equal(t, []string{"food", "beverage"}, expense.Tags)
+		assert.Equal(t, pq.StringArray{"food", "beverage"}, expense.Tags)
 	}
 
 	return expense
@@ -179,7 +180,7 @@ func TestGetAllExpense(t *testing.T) {
 		assert.Equal(t, "strawberry smoothie", es[0].Title)
 		assert.Equal(t, float64(79), float64(es[0].Amount))
 		assert.Equal(t, "night market promotion discount 10 bath", es[0].Note)
-		assert.Equal(t, []string{"food", "beverage"}, es[0].Tags)
+		assert.Equal(t, pq.StringArray{"food", "beverage"}, es[0].Tags)
 	}
 
 	// shutdown
@@ -225,7 +226,7 @@ func TestUpdateUserByID(t *testing.T) {
 	assert.Equal(t, "strawberry smoothie for update", lastExpense.Title)
 	assert.Equal(t, float64(80), float64(lastExpense.Amount))
 	assert.Equal(t, "night market promotion discount 10 bath for update", lastExpense.Note)
-	assert.Equal(t, []string{"food", "beverage", "for update"}, lastExpense.Tags)
+	assert.Equal(t, pq.StringArray{"food", "beverage", "for update"}, lastExpense.Tags)
 
 	// shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

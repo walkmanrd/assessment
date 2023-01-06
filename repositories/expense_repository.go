@@ -15,11 +15,20 @@ type ExpenseRepository struct {
 	db *sql.DB
 }
 
+// NewExpenseRepository is a function to create new expense repository
+func NewExpenseRepository(db *sql.DB) *ExpenseRepository {
+	return &ExpenseRepository{
+		db: db,
+	}
+}
+
 // FindAll is a function to get all expenses
 func (r *ExpenseRepository) FindAll() ([]models.Expense, error) {
-	r.db = configs.ConnectDatabase()
+	if r.db == nil {
+		r.db = configs.ConnectDatabase()
+	}
 
-	stmt, err := r.db.Prepare("SELECT * FROM expenses ORDER BY id ASC")
+	stmt, err := r.db.Prepare("SELECT id, title, amount, note, tags FROM expenses ORDER BY id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +42,7 @@ func (r *ExpenseRepository) FindAll() ([]models.Expense, error) {
 
 	for rows.Next() {
 		expense := models.Expense{}
-		err := rows.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, pq.Array(&expense.Tags))
+		err := rows.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, &expense.Tags)
 		if err != nil {
 			return nil, err
 		}
@@ -45,10 +54,11 @@ func (r *ExpenseRepository) FindAll() ([]models.Expense, error) {
 
 // FindOne is a function to get an expenses by id
 func (r *ExpenseRepository) FindOne(id string) (models.Expense, error) {
-	r.db = configs.ConnectDatabase()
-	defer r.db.Close()
+	if r.db == nil {
+		r.db = configs.ConnectDatabase()
+	}
 
-	stmt, err := r.db.Prepare("SELECT * FROM expenses WHERE id = $1")
+	stmt, err := r.db.Prepare("SELECT id, title, amount, note, tags FROM expenses WHERE id = $1")
 	if err != nil {
 		return models.Expense{}, err
 	}
@@ -56,7 +66,7 @@ func (r *ExpenseRepository) FindOne(id string) (models.Expense, error) {
 	row := stmt.QueryRow(id)
 	expense := models.Expense{}
 
-	err = row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, pq.Array(&expense.Tags))
+	err = row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, &expense.Tags)
 	if err != nil {
 		return models.Expense{}, err
 	}
@@ -66,12 +76,14 @@ func (r *ExpenseRepository) FindOne(id string) (models.Expense, error) {
 
 // Create is a function to create a new expense
 func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.Expense, error) {
-	r.db = configs.ConnectDatabase()
+	if r.db == nil {
+		r.db = configs.ConnectDatabase()
+	}
 
 	sqlCommand := `
 	INSERT INTO expenses (id, title, amount, note, tags) values (DEFAULT, $1, $2, $3, $4)
-	RETURNING id, title, amount, note, tags`
-
+	RETURNING id, title, amount, note, tags
+	`
 	expense := models.Expense{
 		Title:  expenseRequest.Title,
 		Amount: expenseRequest.Amount,
@@ -81,9 +93,7 @@ func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.
 
 	tags := pq.Array(expense.Tags)
 	row := r.db.QueryRow(sqlCommand, &expense.Title, &expense.Amount, &expense.Note, tags)
-	err := row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, pq.Array(&expense.Tags))
-
-	defer r.db.Close()
+	err := row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, &expense.Tags)
 
 	if err != nil {
 		fmt.Println("can't scan id on ExpenseRepository", err)
@@ -95,24 +105,29 @@ func (r *ExpenseRepository) Create(expenseRequest types.ExpenseRequest) (models.
 
 // Update is a function to update an expense by id
 func (r *ExpenseRepository) Update(id string, expenseRequest types.ExpenseRequest) (models.Expense, error) {
-	r.db = configs.ConnectDatabase()
-	defer r.db.Close()
+	if r.db == nil {
+		r.db = configs.ConnectDatabase()
+	}
 
-	sqlCommand := `
-	UPDATE expenses SET title = $1, amount = $2, note = $3, tags = $4
-	WHERE id = $5
-	RETURNING id`
+	sqlCommand := `UPDATE expenses SET title = $2, amount = $3, note = $4, tags = $5 WHERE id = $1 RETURNING id, title, amount, note, tags;`
 
 	expense := models.Expense{
+		ID:     id,
 		Title:  expenseRequest.Title,
 		Amount: expenseRequest.Amount,
 		Note:   expenseRequest.Note,
 		Tags:   expenseRequest.Tags,
 	}
 
-	tags := pq.Array(expenseRequest.Tags)
-	row := r.db.QueryRow(sqlCommand, &expense.Title, &expense.Amount, &expense.Note, tags, id)
-	err := row.Scan(&expense.ID)
+	stmt, err := r.db.Prepare(sqlCommand)
+
+	if err != nil {
+		fmt.Println("can't prepare statement on ExpenseRepository", err)
+		return models.Expense{}, err
+	}
+
+	row := stmt.QueryRow(id, &expense.Title, &expense.Amount, &expense.Note, &expense.Tags)
+	err = row.Scan(&expense.ID, &expense.Title, &expense.Amount, &expense.Note, &expense.Tags)
 
 	if err != nil {
 		fmt.Println("can't scan id on ExpenseRepository", err)

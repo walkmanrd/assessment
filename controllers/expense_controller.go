@@ -9,13 +9,6 @@ import (
 	"github.com/walkmanrd/assessment/types"
 )
 
-type ExpenseControllerInterface interface {
-	Index(e echo.Context) error
-	Show(e echo.Context) error
-	Store(e echo.Context) error
-	Update(e echo.Context) error
-}
-
 // ExpenseController is a struct for expense controller
 type ExpenseController struct {
 	expenseRequest types.ExpenseRequest
@@ -91,16 +84,10 @@ func (c *ExpenseController) Update(e echo.Context) error {
 		return e.JSON(http.StatusBadRequest, types.Error{Message: err.Error()})
 	}
 
-	_, status, err := c.expenseService.GetById(id)
-
-	if err != nil {
-		return e.JSON(status, types.Error{Message: "invalid parameter id"})
-	}
-
 	newExpense, err := c.expenseService.UpdateById(id, c.expenseRequest)
 
 	if err != nil {
-		return e.JSON(http.StatusInternalServerError, types.Error{Message: "invalid parameter id"})
+		return e.JSON(http.StatusInternalServerError, types.Error{Message: err.Error()})
 	}
 
 	return e.JSON(http.StatusOK, newExpense)
